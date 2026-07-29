@@ -601,8 +601,8 @@ async fn test_insert_into_nested() -> Result<()> {
     // Insert data with nested structs
     let insert_sql = r#"
     INSERT INTO catalog.test_insert_nested.nested_table
-    SELECT 
-        1 as id, 
+    SELECT
+        1 as id,
         'Alice' as name,
         named_struct(
             'address', named_struct(
@@ -616,8 +616,8 @@ async fn test_insert_into_nested() -> Result<()> {
             )
         ) as profile
     UNION ALL
-    SELECT 
-        2 as id, 
+    SELECT
+        2 as id,
         'Bob' as name,
         named_struct(
             'address', named_struct(
@@ -739,15 +739,15 @@ async fn test_insert_into_nested() -> Result<()> {
     let df = ctx
         .sql(
             r#"
-            SELECT 
-                id, 
+            SELECT
+                id,
                 name,
                 profile.address.street,
                 profile.address.city,
                 profile.address.zip,
                 profile.contact.email,
                 profile.contact.phone
-            FROM catalog.test_insert_nested.nested_table 
+            FROM catalog.test_insert_nested.nested_table
             ORDER BY id
         "#,
         )
@@ -853,8 +853,8 @@ async fn test_insert_into_partitioned() -> Result<()> {
     let df = ctx
         .sql(
             r#"
-            INSERT INTO catalog.test_partitioned_write.partitioned_table 
-            VALUES 
+            INSERT INTO catalog.test_partitioned_write.partitioned_table
+            VALUES
                 (1, 'electronics', 'laptop'),
                 (2, 'electronics', 'phone'),
                 (3, 'books', 'novel'),
@@ -942,6 +942,124 @@ async fn test_insert_into_partitioned() -> Result<()> {
     assert!(
         file_io.exists(&clothing_path).await?,
         "Expected partition directory: {clothing_path}"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_inserting_to_a_table_with_all_primitive_types() -> Result<()> {
+    let iceberg_catalog = get_iceberg_catalog().await;
+    let namespace = NamespaceIdent::new("test_all_primitive_types".to_string());
+    set_test_namespace(&iceberg_catalog, &namespace).await?;
+
+    let schema = Schema::builder()
+        .with_schema_id(1)
+        .with_fields(vec![
+            NestedField::required(1, "boolean", Type::Primitive(PrimitiveType::Boolean)).into(),
+            NestedField::required(2, "int", Type::Primitive(PrimitiveType::Int)).into(),
+            NestedField::required(3, "long", Type::Primitive(PrimitiveType::Long)).into(),
+            NestedField::required(4, "float", Type::Primitive(PrimitiveType::Float)).into(),
+            NestedField::required(5, "double", Type::Primitive(PrimitiveType::Double)).into(),
+            NestedField::required(
+                6,
+                "decimal",
+                Type::Primitive(PrimitiveType::Decimal {
+                    precision: 38,
+                    scale: 10,
+                }),
+            )
+            .into(),
+            NestedField::required(7, "date", Type::Primitive(PrimitiveType::Date)).into(),
+            NestedField::required(8, "time", Type::Primitive(PrimitiveType::Time)).into(),
+            NestedField::required(9, "timestamp", Type::Primitive(PrimitiveType::Timestamp)).into(),
+            NestedField::required(
+                10,
+                "timestamptz",
+                Type::Primitive(PrimitiveType::Timestamptz),
+            )
+            .into(),
+            NestedField::required(
+                11,
+                "timestamp_ns",
+                Type::Primitive(PrimitiveType::TimestampNs),
+            )
+            .into(),
+            NestedField::required(
+                12,
+                "timestamptz_ns",
+                Type::Primitive(PrimitiveType::TimestamptzNs),
+            )
+            .into(),
+            NestedField::required(13, "string", Type::Primitive(PrimitiveType::String)).into(),
+            NestedField::required(14, "uuid", Type::Primitive(PrimitiveType::Uuid)).into(),
+            NestedField::required(15, "fixed", Type::Primitive(PrimitiveType::Fixed(16))).into(),
+            NestedField::required(16, "binary", Type::Primitive(PrimitiveType::Binary)).into(),
+        ])
+        .build()
+        .unwrap();
+
+    let table_creation = TableCreation::builder()
+        .name("t1".to_string())
+        .location(temp_path())
+        .schema(schema.clone())
+        // for timestamptz_ns support
+        .format_version(FormatVersion::V3)
+        .properties(HashMap::new())
+        .build();
+
+    iceberg_catalog
+        .create_table(&namespace, table_creation)
+        .await
+        .unwrap();
+
+    let client = Arc::new(iceberg_catalog);
+    let catalog = Arc::new(IcebergCatalogProvider::try_new(client.clone()).await?);
+    let ctx = SessionContext::new();
+    ctx.register_catalog("catalog", catalog);
+
+    ctx.sql(
+        "INSERT INTO catalog.test_all_primitive_types.t1 VALUES (
+            true,
+            123,
+            456,
+            7.89,
+            0.12,
+            3.45,
+            DATE '2022-01-01',
+            TIME '12:34:56.123456',
+            TIMESTAMP '2020-09-13T12:26:40',
+            TIMESTAMP '2020-09-13T12:26:40+00:00',
+            TIMESTAMP '2020-09-13T12:26:40.123456789',
+            TIMESTAMP '2020-09-13T12:26:40.123456789+00:00',
+            '🦊',
+            'a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8',
+            X'000102030405060708090a0b0c0d0e0f',
+            X'62696e617279'
+        )"
+    )
+    .await
+    .unwrap()
+    .collect()
+    .await
+    .unwrap();
+
+    // Query the table to verify data
+    let batches = ctx
+        .sql("SELECT * FROM catalog.test_all_primitive_types.t1")
+        .await
+        .unwrap()
+        .collect()
+        .await
+        .unwrap();
+
+    assert_eq!(batches.len(), 1);
+    check_record_batches(
+        batches,
+        expect![[r#""#]],
+        expect![[r#""#]],
+        &[],
+        None,
     );
 
     Ok(())
