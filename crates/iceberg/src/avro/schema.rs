@@ -53,7 +53,7 @@ impl SchemaVisitor for SchemaToAvroSchema {
         let mut avro_schema = value.unwrap_left();
 
         if let AvroSchema::Record(record) = &mut avro_schema {
-            record.name = Name::from(self.schema.as_str());
+            record.name = Name::new(self.schema.as_str())?;
         } else {
             return Err(Error::new(
                 ErrorKind::Unexpected,
@@ -71,7 +71,10 @@ impl SchemaVisitor for SchemaToAvroSchema {
     ) -> Result<AvroSchemaOrField> {
         let mut field_schema = avro_schema.unwrap_left();
         if let AvroSchema::Record(record) = &mut field_schema {
-            record.name = Name::from(format!("r{}", field.id).as_str());
+            let name_str = format!("r{}", field.id);
+            let name = Name::new(name_str)?;
+
+            record.name = name;
         }
 
         if !field.required {
@@ -92,7 +95,7 @@ impl SchemaVisitor for SchemaToAvroSchema {
             order: RecordFieldOrder::Ignore,
             position: 0,
             doc: field.doc.clone(),
-            aliases: None,
+
             default,
             custom_attributes: Default::default(),
         };
@@ -123,7 +126,10 @@ impl SchemaVisitor for SchemaToAvroSchema {
         let mut field_schema = value.unwrap_left();
 
         if let AvroSchema::Record(record) = &mut field_schema {
-            record.name = Name::from(format!("r{}", list.element_field.id).as_str());
+            let name_str = format!("r{}", list.element_field.id);
+            let name = Name::new(name_str)?;
+
+            record.name = name;
         }
 
         if !list.element_field.required {
@@ -172,7 +178,6 @@ impl SchemaVisitor for SchemaToAvroSchema {
                 let mut field = AvroRecordField {
                     name: map.key_field.name.clone(),
                     doc: None,
-                    aliases: None,
                     default: None,
                     schema: key_field_schema,
                     order: RecordFieldOrder::Ascending,
@@ -190,7 +195,6 @@ impl SchemaVisitor for SchemaToAvroSchema {
                 let mut field = AvroRecordField {
                     name: map.value_field.name.clone(),
                     doc: None,
-                    aliases: None,
                     default: None,
                     schema: value_field_schema,
                     order: RecordFieldOrder::Ignore,
@@ -285,7 +289,6 @@ pub(crate) fn avro_fixed_schema(len: usize) -> Result<AvroSchema> {
         doc: None,
         size: len,
         attributes: Default::default(),
-        default: None,
     }))
 }
 
@@ -305,7 +308,6 @@ pub(crate) fn avro_decimal_schema(precision: usize, scale: usize) -> Result<Avro
             doc: None,
             size: Type::decimal_required_bytes(precision as u32)? as usize,
             attributes: Default::default(),
-            default: None,
         })),
     }))
 }
@@ -529,7 +531,7 @@ impl AvroSchemaVisitor for AvroSchemaToSchema {
             AvroSchema::Long => Type::Primitive(PrimitiveType::Long),
             AvroSchema::Float => Type::Primitive(PrimitiveType::Float),
             AvroSchema::Double => Type::Primitive(PrimitiveType::Double),
-            AvroSchema::Uuid => Type::Primitive(PrimitiveType::Uuid),
+            AvroSchema::Uuid(uuid_schema) => Type::Primitive(PrimitiveType::Uuid),
             AvroSchema::String | AvroSchema::Enum(_) => Type::Primitive(PrimitiveType::String),
             AvroSchema::Fixed(fixed) => Type::Primitive(PrimitiveType::Fixed(fixed.size as u64)),
             AvroSchema::Bytes => Type::Primitive(PrimitiveType::Binary),
