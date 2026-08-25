@@ -367,7 +367,7 @@ mod tests {
                 .partition_type(&metadata.schema)
                 .unwrap();
             let avro_schema = manifest_schema_v2(&partition_type).unwrap();
-            let mut writer = Writer::with_codec(&avro_schema, Vec::new(), Codec::Snappy);
+            let mut writer = Writer::with_codec(&avro_schema, Vec::new(), Codec::Snappy).unwrap();
             writer
                 .add_user_metadata("schema".to_string(), to_vec(&metadata.schema).unwrap())
                 .unwrap();
@@ -408,7 +408,7 @@ mod tests {
             .unwrap()
             .resolve(&avro_schema)
             .unwrap();
-            writer.append(value).unwrap();
+            writer.append_value(value).unwrap();
             let bs = writer.into_inner().unwrap();
 
             let parsed_manifest = Manifest::parse_avro(&bs).unwrap();

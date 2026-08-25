@@ -633,7 +633,7 @@ mod tests {
     use std::sync::Arc;
 
     use apache_avro::Schema as AvroSchema;
-    use apache_avro::schema::{Namespace, UnionSchema};
+    use apache_avro::schema::UnionSchema;
 
     use super::*;
     use crate::avro::schema::AvroSchemaToSchema;

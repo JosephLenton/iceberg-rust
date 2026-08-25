@@ -53,7 +53,7 @@ fn check_avro_bytes_serde(input: Vec<u8>, expected_datum: Datum, expected_type: 
     let datum = Datum::try_from_bytes(&bytes, expected_type.clone()).unwrap();
     assert_eq!(datum, expected_datum);
 
-    let mut writer = apache_avro::Writer::new(&schema, Vec::new());
+    let mut writer = apache_avro::Writer::new(&schema, Vec::new()).unwrap();
     writer.append_ser(datum.to_bytes().unwrap()).unwrap();
     let encoded = writer.into_inner().unwrap();
     let reader = apache_avro::Reader::builder(&*encoded)
@@ -78,7 +78,7 @@ fn check_convert_with_avro(expected_literal: Literal, expected_type: &Type) {
     let struct_type = Type::Struct(StructType::new(fields));
     let struct_literal = Literal::Struct(Struct::from_iter(vec![Some(expected_literal.clone())]));
 
-    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new());
+    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new()).unwrap();
     let raw_literal = RawLiteral::try_from(struct_literal.clone(), &struct_type).unwrap();
     writer.append_ser(raw_literal).unwrap();
     let encoded = writer.into_inner().unwrap();
@@ -102,7 +102,7 @@ fn check_serialize_avro(literal: Literal, ty: &Type, expect_value: Value) {
     let avro_schema = schema_to_avro_schema("test", &schema).unwrap();
     let struct_type = Type::Struct(StructType::new(fields));
     let struct_literal = Literal::Struct(Struct::from_iter(vec![Some(literal.clone())]));
-    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new());
+    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new()).unwrap();
     let raw_literal = RawLiteral::try_from(struct_literal.clone(), &struct_type).unwrap();
     let value = to_value(raw_literal)
         .unwrap()
@@ -887,7 +887,7 @@ fn check_convert_with_avro_map(expected_literal: Literal, expected_type: &Type) 
     let struct_type = Type::Struct(StructType::new(fields));
     let struct_literal = Literal::Struct(Struct::from_iter(vec![Some(expected_literal.clone())]));
 
-    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new());
+    let mut writer = apache_avro::Writer::new(&avro_schema, Vec::new()).unwrap();
     let raw_literal = RawLiteral::try_from(struct_literal.clone(), &struct_type).unwrap();
     writer.append_ser(raw_literal).unwrap();
     let encoded = writer.into_inner().unwrap();

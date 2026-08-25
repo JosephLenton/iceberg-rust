@@ -269,7 +269,7 @@ mod test {
 
         let manifest_entry: ManifestFileV2 = manifest_list.entries[0].clone().try_into().unwrap();
         let mut writer =
-            Writer::with_codec(&MANIFEST_LIST_AVRO_SCHEMA_V2, Vec::new(), Codec::Snappy);
+            Writer::with_codec(&MANIFEST_LIST_AVRO_SCHEMA_V2, Vec::new(), Codec::Snappy).unwrap();
         writer.append_ser(manifest_entry).unwrap();
         let bs = writer.into_inner().unwrap();
 
