@@ -59,7 +59,7 @@ impl ManifestListWriter {
         writer: Box<dyn FileWrite>,
         snapshot_id: i64,
         parent_snapshot_id: Option<i64>,
-    ) -> Self {
+    ) -> Result<Self> {
         let mut metadata = HashMap::from_iter([
             ("snapshot-id".to_string(), snapshot_id.to_string()),
             ("format-version".to_string(), "1".to_string()),
@@ -79,7 +79,7 @@ impl ManifestListWriter {
         snapshot_id: i64,
         parent_snapshot_id: Option<i64>,
         sequence_number: i64,
-    ) -> Self {
+    ) -> Result<Self> {
         let mut metadata = HashMap::from_iter([
             ("snapshot-id".to_string(), snapshot_id.to_string()),
             ("sequence-number".to_string(), sequence_number.to_string()),
@@ -108,7 +108,7 @@ impl ManifestListWriter {
         parent_snapshot_id: Option<i64>,
         sequence_number: i64,
         first_row_id: Option<u64>, // Always None for delete manifests
-    ) -> Self {
+    ) -> Result<Self> {
         let mut metadata = HashMap::from_iter([
             ("snapshot-id".to_string(), snapshot_id.to_string()),
             ("sequence-number".to_string(), sequence_number.to_string()),
@@ -143,26 +143,27 @@ impl ManifestListWriter {
         sequence_number: i64,
         snapshot_id: i64,
         first_row_id: Option<u64>,
-    ) -> Self {
+    ) -> Result<Self> {
         let avro_schema = match format_version {
             FormatVersion::V1 => &MANIFEST_LIST_AVRO_SCHEMA_V1,
             FormatVersion::V2 => &MANIFEST_LIST_AVRO_SCHEMA_V2,
             FormatVersion::V3 => &MANIFEST_LIST_AVRO_SCHEMA_V3,
         };
-        let mut avro_writer = Writer::new(avro_schema, Vec::new());
+        let mut avro_writer = Writer::new(avro_schema, Vec::new())?;
         for (key, value) in metadata {
             avro_writer
                 .add_user_metadata(key, value)
                 .expect("Avro metadata should be added to the writer before the first record.");
         }
-        Self {
+
+        Ok(Self {
             format_version,
             writer,
             avro_writer,
             sequence_number,
             snapshot_id,
             next_row_id: first_row_id,
-        }
+        })
     }
 
     /// Append manifests to be written.
@@ -358,7 +359,7 @@ mod test {
         let io = FileIO::new_with_fs();
         let file_writer = file_writer(&path, io).await;
 
-        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0));
+        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0)).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -405,7 +406,8 @@ mod test {
         let io = FileIO::new_with_fs();
         let file_writer = file_writer(&path, io).await;
 
-        let mut writer = ManifestListWriter::v2(file_writer, snapshot_id, Some(0), seq_num);
+        let mut writer =
+            ManifestListWriter::v2(file_writer, snapshot_id, Some(0), seq_num).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -454,7 +456,7 @@ mod test {
         let file_writer = file_writer(&path, io).await;
 
         let mut writer =
-            ManifestListWriter::v3(file_writer, snapshot_id, Some(0), seq_num, Some(10));
+            ManifestListWriter::v3(file_writer, snapshot_id, Some(0), seq_num, Some(10)).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -501,7 +503,7 @@ mod test {
         let io = FileIO::new_with_fs();
         let file_writer = file_writer(&path, io).await;
 
-        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0));
+        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0)).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -546,7 +548,7 @@ mod test {
         let io = FileIO::new_with_fs();
         let file_writer = file_writer(&path, io).await;
 
-        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0));
+        let mut writer = ManifestListWriter::v1(file_writer, 1646658105718557341, Some(0)).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -593,7 +595,8 @@ mod test {
         let io = FileIO::new_with_fs();
         let file_writer = file_writer(&path, io).await;
 
-        let mut writer = ManifestListWriter::v2(file_writer, snapshot_id, Some(0), seq_num);
+        let mut writer =
+            ManifestListWriter::v2(file_writer, snapshot_id, Some(0), seq_num).unwrap();
         writer
             .add_manifests(expected_manifest_list.entries.clone().into_iter())
             .unwrap();
@@ -647,7 +650,8 @@ mod test {
         };
 
         let file_writer = encrypted_output.writer().await.unwrap();
-        let mut writer = ManifestListWriter::v3(file_writer, snapshot_id, Some(0), seq_num, None);
+        let mut writer =
+            ManifestListWriter::v3(file_writer, snapshot_id, Some(0), seq_num, None).unwrap();
         writer
             .add_manifests(expected.entries.clone().into_iter())
             .unwrap();

@@ -341,7 +341,8 @@ mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_file_manifest].into_iter())
                 .unwrap();

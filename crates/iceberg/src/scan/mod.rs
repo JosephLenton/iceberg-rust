@@ -1004,7 +1004,8 @@ pub mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_file_manifest].into_iter())
                 .unwrap();
@@ -1082,7 +1083,8 @@ pub mod tests {
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
                 Some(42),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_file_manifest].into_iter())
                 .unwrap();
@@ -1199,7 +1201,8 @@ pub mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_file_manifest].into_iter())
                 .unwrap();
@@ -1434,7 +1437,8 @@ pub mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_file_manifest].into_iter())
                 .unwrap();
@@ -1528,7 +1532,8 @@ pub mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(vec![data_manifest, delete_manifest].into_iter())
                 .unwrap();
@@ -1633,7 +1638,8 @@ pub mod tests {
                 current_snapshot.snapshot_id(),
                 current_snapshot.parent_snapshot_id(),
                 current_snapshot.sequence_number(),
-            );
+            )
+            .unwrap();
             manifest_list_write
                 .add_manifests(manifests.into_iter())
                 .unwrap();

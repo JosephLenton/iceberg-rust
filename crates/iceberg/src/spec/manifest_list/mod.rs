@@ -142,7 +142,8 @@ mod test {
                 .unwrap(),
             1646658105718557341,
             Some(1646658105718557341),
-        );
+        )
+        .unwrap();
 
         writer
             .add_manifests(manifest_list.entries.clone().into_iter())
@@ -220,7 +221,8 @@ mod test {
             1646658105718557341,
             Some(1646658105718557341),
             1,
-        );
+        )
+        .unwrap();
 
         writer
             .add_manifests(manifest_list.entries.clone().into_iter())
@@ -339,7 +341,8 @@ mod test {
             Some(377075049360453639),
             1,
             Some(10),
-        );
+        )
+        .unwrap();
 
         writer
             .add_manifests(manifest_list.entries.clone().into_iter())

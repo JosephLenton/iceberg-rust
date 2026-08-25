@@ -465,10 +465,10 @@ impl<'a> SnapshotProducer<'a> {
         let parent_snapshot_id = self.table.metadata().current_snapshot_id();
         let mut manifest_list_writer = match self.table.metadata().format_version() {
             FormatVersion::V1 => {
-                ManifestListWriter::v1(writer, self.snapshot_id, parent_snapshot_id)
+                ManifestListWriter::v1(writer, self.snapshot_id, parent_snapshot_id)?
             }
             FormatVersion::V2 => {
-                ManifestListWriter::v2(writer, self.snapshot_id, parent_snapshot_id, next_seq_num)
+                ManifestListWriter::v2(writer, self.snapshot_id, parent_snapshot_id, next_seq_num)?
             }
             FormatVersion::V3 => ManifestListWriter::v3(
                 writer,
@@ -476,7 +476,7 @@ impl<'a> SnapshotProducer<'a> {
                 parent_snapshot_id,
                 next_seq_num,
                 Some(first_row_id),
-            ),
+            )?,
         };
 
         // Calling self.summary() before self.produce_manifests() is important because self.added_data_files
