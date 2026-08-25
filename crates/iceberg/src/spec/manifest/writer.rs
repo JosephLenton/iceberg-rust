@@ -454,7 +454,7 @@ impl ManifestWriter {
             // Manifest schema did not change between V2 and V3
             FormatVersion::V2 | FormatVersion::V3 => manifest_schema_v2(&partition_type)?,
         };
-        let mut avro_writer = AvroWriter::new(&avro_schema, Vec::new());
+        let mut avro_writer = AvroWriter::new(&avro_schema, Vec::new())?;
         avro_writer.add_user_metadata(
             "schema".to_string(),
             to_vec(table_schema).map_err(|err| {
@@ -504,7 +504,7 @@ impl ManifestWriter {
                 }
             };
 
-            avro_writer.append(value)?;
+            avro_writer.append_value(value)?;
         }
 
         let content = avro_writer.into_inner()?;
