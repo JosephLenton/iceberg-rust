@@ -130,7 +130,9 @@ mod _serde {
     use std::io::Cursor;
     use std::sync::{Arc, LazyLock};
 
-    use apache_avro::{Schema as AvroSchema, from_avro_datum, from_value, to_avro_datum, to_value};
+    use apache_avro::{Schema as AvroSchema, from_value, to_value};
+    #[allow(deprecated)]
+    use apache_avro::{from_avro_datum, to_avro_datum};
     use serde::{Deserialize, Serialize};
 
     use super::*;
@@ -184,6 +186,7 @@ mod _serde {
                         .with_source(e)
                 })?;
 
+            #[allow(deprecated)]
             let datum = to_avro_datum(&AVRO_SCHEMA_V1, value).map_err(|e| {
                 Error::new(ErrorKind::Unexpected, "Failed to encode key metadata").with_source(e)
             })?;
@@ -211,6 +214,7 @@ mod _serde {
             }
 
             let mut reader = Cursor::new(&bytes[1..]);
+            #[allow(deprecated)]
             let value = from_avro_datum(&AVRO_SCHEMA_V1, &mut reader, None).map_err(|e| {
                 Error::new(ErrorKind::DataInvalid, "Failed to decode key metadata").with_source(e)
             })?;
