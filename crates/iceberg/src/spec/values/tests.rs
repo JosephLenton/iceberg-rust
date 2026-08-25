@@ -56,7 +56,10 @@ fn check_avro_bytes_serde(input: Vec<u8>, expected_datum: Datum, expected_type: 
     let mut writer = apache_avro::Writer::new(&schema, Vec::new());
     writer.append_ser(datum.to_bytes().unwrap()).unwrap();
     let encoded = writer.into_inner().unwrap();
-    let reader = apache_avro::Reader::with_schema(&schema, &*encoded).unwrap();
+    let reader = apache_avro::Reader::builder(&*encoded)
+        .reader_schema(&schema)
+        .build()
+        .unwrap();
 
     for record in reader {
         let result = apache_avro::from_value::<ByteBuf>(&record.unwrap()).unwrap();

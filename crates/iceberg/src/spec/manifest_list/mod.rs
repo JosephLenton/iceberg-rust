@@ -61,7 +61,9 @@ impl ManifestList {
     pub fn parse_with_version(bs: &[u8], version: FormatVersion) -> Result<ManifestList> {
         match version {
             FormatVersion::V1 => {
-                let reader = Reader::with_schema(&MANIFEST_LIST_AVRO_SCHEMA_V1, bs)?;
+                let reader = Reader::builder(bs)
+                    .reader_schema(&MANIFEST_LIST_AVRO_SCHEMA_V1)
+                    .build()?;
                 let values = Value::Array(reader.collect::<std::result::Result<Vec<Value>, _>>()?);
                 from_value::<_serde::ManifestListV1>(&values)?.try_into()
             }

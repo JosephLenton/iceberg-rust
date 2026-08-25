@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 
 use apache_avro::Schema as AvroSchema;
 use apache_avro::schema::{
-    ArraySchema, DecimalSchema, FixedSchema, MapSchema, Name, RecordField as AvroRecordField,
-    RecordFieldOrder, RecordSchema, UnionSchema,
+    ArraySchema, DecimalSchema, FixedSchema, InnerDecimalSchema, MapSchema, Name,
+    RecordField as AvroRecordField, RecordSchema, UnionSchema, UuidSchema,
 };
 use itertools::{Either, Itertools};
 use serde_json::{Number, Value};
@@ -92,10 +92,8 @@ impl SchemaVisitor for SchemaToAvroSchema {
         let mut avro_record_field = AvroRecordField {
             name: field.name.clone(),
             schema: field_schema,
-            order: RecordFieldOrder::Ignore,
-            position: 0,
             doc: field.doc.clone(),
-
+            aliases: Vec::new(),
             default,
             custom_attributes: Default::default(),
         };
@@ -178,10 +176,9 @@ impl SchemaVisitor for SchemaToAvroSchema {
                 let mut field = AvroRecordField {
                     name: map.key_field.name.clone(),
                     doc: None,
+                    aliases: Vec::new(),
                     default: None,
                     schema: key_field_schema,
-                    order: RecordFieldOrder::Ascending,
-                    position: 0,
                     custom_attributes: Default::default(),
                 };
                 field.custom_attributes.insert(
@@ -195,10 +192,9 @@ impl SchemaVisitor for SchemaToAvroSchema {
                 let mut field = AvroRecordField {
                     name: map.value_field.name.clone(),
                     doc: None,
+                    aliases: Vec::new(),
                     default: None,
                     schema: value_field_schema,
-                    order: RecordFieldOrder::Ignore,
-                    position: 0,
                     custom_attributes: Default::default(),
                 };
                 field.custom_attributes.insert(
@@ -238,7 +234,7 @@ impl SchemaVisitor for SchemaToAvroSchema {
             PrimitiveType::TimestampNs => AvroSchema::TimestampNanos,
             PrimitiveType::TimestamptzNs => AvroSchema::TimestampNanos,
             PrimitiveType::String => AvroSchema::String,
-            PrimitiveType::Uuid => AvroSchema::Uuid,
+            PrimitiveType::Uuid => avro_uuid_schema()?,
             PrimitiveType::Fixed(len) => avro_fixed_schema((*len) as usize)?,
             PrimitiveType::Binary => AvroSchema::Bytes,
             PrimitiveType::Decimal { precision, scale } => {
@@ -292,6 +288,20 @@ pub(crate) fn avro_fixed_schema(len: usize) -> Result<AvroSchema> {
     }))
 }
 
+/// Build the Avro schema for the Iceberg `uuid` primitive type.
+///
+/// The Iceberg spec maps `uuid` to `{"type": "fixed", "size": 16, "logicalType": "uuid"}`,
+/// i.e. 16 raw bytes, which is what iceberg-java writes.
+pub(crate) fn avro_uuid_schema() -> Result<AvroSchema> {
+    Ok(AvroSchema::Uuid(UuidSchema::Fixed(FixedSchema {
+        name: Name::new("uuid_fixed")?,
+        aliases: None,
+        doc: None,
+        size: 16,
+        attributes: Default::default(),
+    })))
+}
+
 pub(crate) fn avro_decimal_schema(precision: usize, scale: usize) -> Result<AvroSchema> {
     // Avro decimal logical type annotates Avro bytes _or_ fixed types.
     // https://avro.apache.org/docs/1.11.1/specification/_print/#decimal
@@ -300,16 +310,20 @@ pub(crate) fn avro_decimal_schema(precision: usize, scale: usize) -> Result<Avro
     Ok(AvroSchema::Decimal(DecimalSchema {
         precision,
         scale,
-        inner: Box::new(AvroSchema::Fixed(FixedSchema {
-            // Name is not restricted by the spec.
-            // Refer to iceberg-python https://github.com/apache/iceberg-python/blob/d8bc1ca9af7957ce4d4db99a52c701ac75db7688/pyiceberg/utils/schema_conversion.py#L574-L582
-            name: Name::new(&format!("decimal_{precision}_{scale}")).unwrap(),
-            aliases: None,
-            doc: None,
-            size: Type::decimal_required_bytes(precision as u32)? as usize,
-            attributes: Default::default(),
-        })),
+        inner: InnerDecimalSchema::Fixed(avro_decimal_fixed_schema(precision, scale)?),
     }))
+}
+
+fn avro_decimal_fixed_schema(precision: usize, scale: usize) -> Result<FixedSchema> {
+    Ok(FixedSchema {
+        // Name is not restricted by the spec.
+        // Refer to iceberg-python https://github.com/apache/iceberg-python/blob/d8bc1ca9af7957ce4d4db99a52c701ac75db7688/pyiceberg/utils/schema_conversion.py#L574-L582
+        name: Name::new(&format!("decimal_{precision}_{scale}")).unwrap(),
+        aliases: None,
+        doc: None,
+        size: Type::decimal_required_bytes(precision as u32)? as usize,
+        attributes: Default::default(),
+    })
 }
 
 fn avro_optional(avro_schema: AvroSchema) -> Result<AvroSchema> {
@@ -531,7 +545,7 @@ impl AvroSchemaVisitor for AvroSchemaToSchema {
             AvroSchema::Long => Type::Primitive(PrimitiveType::Long),
             AvroSchema::Float => Type::Primitive(PrimitiveType::Float),
             AvroSchema::Double => Type::Primitive(PrimitiveType::Double),
-            AvroSchema::Uuid(uuid_schema) => Type::Primitive(PrimitiveType::Uuid),
+            AvroSchema::Uuid(_) => Type::Primitive(PrimitiveType::Uuid),
             AvroSchema::String | AvroSchema::Enum(_) => Type::Primitive(PrimitiveType::String),
             AvroSchema::Fixed(fixed) => Type::Primitive(PrimitiveType::Fixed(fixed.size as u64)),
             AvroSchema::Bytes => Type::Primitive(PrimitiveType::Binary),
@@ -648,11 +662,9 @@ mod tests {
         assert_eq!(iceberg_schema, converted_iceberg_schema);
 
         // 2. iceberg to avro
-        let converted_avro_schema = schema_to_avro_schema(
-            avro_schema.name().unwrap().fullname(Namespace::None),
-            &iceberg_schema,
-        )
-        .unwrap();
+        let converted_avro_schema =
+            schema_to_avro_schema(avro_schema.name().unwrap().fullname(None), &iceberg_schema)
+                .unwrap();
         assert_eq!(avro_schema, converted_avro_schema);
 
         // 3.iceberg to avro to iceberg back
@@ -1148,7 +1160,13 @@ mod tests {
     fn test_unknown_primitive() {
         let mut converter = AvroSchemaToSchema;
 
-        assert!(converter.primitive(&AvroSchema::Duration).is_err());
+        assert!(
+            converter
+                .primitive(&AvroSchema::Duration(
+                    avro_decimal_fixed_schema(4, 4).unwrap()
+                ))
+                .is_err()
+        );
     }
 
     #[test]
